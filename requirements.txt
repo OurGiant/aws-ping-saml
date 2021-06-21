@@ -1,0 +1,7 @@
+boto3
+bs4
+lxml
+requests
+selenium
+botocore
+cryptography
