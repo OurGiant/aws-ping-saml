@@ -133,11 +133,31 @@ class Config:
         except configparser.NoSectionError as e:
             print(f'No such AWS profile {profileName}')
             exit(2)
-        awsRegion = self.configSAML[profileName]['awsRegion']
-        accountNumber = self.configSAML[profileName]['accountNumber']
-        IAMRole = self.configSAML[profileName]['IAMRole']
-        samlProvider = self.configSAML[profileName]['samlProvider']
-        username = self.configSAML[profileName]['username']
+        try:
+           awsRegion = self.configSAML[profileName]['awsRegion']
+        except KeyError:
+            awsRegion = None
+        try:
+            accountNumber = self.configSAML[profileName]['accountNumber']
+        except KeyError:
+            print('An account number must be provided in the configuraton file')
+            exit(2)
+        try:
+            IAMRole = self.configSAML[profileName]['IAMRole']
+        except KeyError:
+            print('A ROLE number must be provided in the configuraton file')
+            exit(2)
+        try:
+            samlProvider = self.configSAML[profileName]['samlProvider']
+        except KeyError:
+            print('A SAML provider must be provided in the configuraton file')
+            exit(2)
+        try:
+            username = self.configSAML[profileName]['username']
+        except KeyError:
+            print('A username number must be provided in the configuraton file')
+            exit(2)
+
         guiName = self.configSAML[profileName]['guiName']
 
         print(f'Reading configuration for SAML provider {samlProvider}')

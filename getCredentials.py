@@ -54,6 +54,15 @@ else:
     principleARN, roleARN, username, awsRegion, firstPage, sessionDuration = config.readconfig(profileName)
     sessionDuration = args.duration
 
+
+if awsRegion is None and args.region is None:
+    print('Defaulting the region to us-east-1\nA custom region may be provided using the config file or the command line arguement.')
+    awsRegion = 'us-east-1'
+
+if sessionDuration is None and args.duration is None:
+    print('Defaulting the session duration to one hour\nA custom duration may be provided using the config file or the command line arguement.')
+    sessionDuration = 3600
+
 passKey, passFile = config.returnStoredPassConfig()
 
 if args.storedpw is False:
