@@ -72,7 +72,7 @@ class SAMLLogin:
             browser_options = Chrome()
             browser_options.add_argument("--disable-dev-shm-usage")
 
-        if sys.platform == 'win32':
+        if sys.platform == 'win32' and browser == 'chrome':
             try:
                 browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
             except se.NoSuchAttributeException:
