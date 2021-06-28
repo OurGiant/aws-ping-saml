@@ -1,1 +1,3 @@
 /drivers/geckodriver
+.idea/*
+.idea
