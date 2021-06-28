@@ -73,7 +73,10 @@ class SAMLLogin:
             browser_options.add_argument("--disable-dev-shm-usage")
 
         if sys.platform == 'win32':
-            browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            try:
+                browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            except se.NoSuchAttributeException:
+                print('Unable to add Experimental Options')
             # Chrome on Win32 requires basic authentication on PING page, prior to form authentication
             firstPage = firstPage[0:8]+username+':'+password+'@'+firstPage[8:]
 
