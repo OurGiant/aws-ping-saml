@@ -1,4 +1,3 @@
->>>>>>> 
 # AWS SAML Token Utility
 
 This tool is meant to bridge the gap between using federated login for console and CLI access to AWS

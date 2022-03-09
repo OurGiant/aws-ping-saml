@@ -1,3 +1,5 @@
 /drivers/geckodriver
 .idea/*
 .idea
+/drivers/chromedriver.exe
+/drivers/geckodriver.exe

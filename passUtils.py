@@ -40,6 +40,8 @@ def evaluatePass(passFile, passKey):
     passCreated = tsNow - passFileAge
     print(f'Password file age: {passCreated}')
     if passCreated > 86400:
+        #remove the file, or windows won't be able to create a new one
+        os.remove(passFile)
         print(f'Your password file is too old. Reenter the password')
         password = getPassword()
         storePass(password, passKey, passFile)
