@@ -1,0 +1,9 @@
+version: "3.3"
+services:
+    get-saml-app:
+        build: .
+        container_name: get-saml-app
+        volumes:
+            - ./:/get-saml/
+
+

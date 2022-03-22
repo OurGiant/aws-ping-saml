@@ -53,6 +53,7 @@ class Config:
         # READ IN SAML CONFIG IF EXISTS, EXIT IF NOT
         if Path(self.awsSAMLFile).is_file() is False:
             missingConfigFileMessage()
+            
         else:
             self.configSAML = configparser.ConfigParser()
             self.configSAML.read(self.awsSAMLFile)

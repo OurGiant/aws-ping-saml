@@ -4,6 +4,7 @@ from boto3 import Session as BotoSession
 from botocore import errorfactory as err
 from samlLogin import SAMLLogin
 from samlConfig import Config, getRegion
+from guidedRun import Guide
 import passUtils
 import argparse
 
@@ -13,6 +14,7 @@ illegalCharacters = ['!', '@', '#', '&', '(', ')', '[', '{', '}', ']', ':', ';',
 validRegions = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2']
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--guideme", type=bool, help="run the utility using prompts")
 parser.add_argument("--profilename", type=str, help="the AWS profile name for this session")
 parser.add_argument("--region", type=str, help="the AWS profile name for this session")
 parser.add_argument("--duration", type=str,  help="desire token length, not to be greater than max length set by AWS administrator")
@@ -29,9 +31,13 @@ if len(sys.argv) == 0:
 else:
     args = parser.parse_args()
 
+if args.guideme is True:
+    guidedRun()
+    sys.exit(1)
+
 if args.profilename is None:
     print('A profile name must be specified')
-    exit(1)
+    sys.exit(1)
 else:
     profileName = args.profilename
     # profileName = profileName.decode("utf8", "ignore")

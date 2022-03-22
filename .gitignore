@@ -1,5 +1,5 @@
-/drivers/geckodriver
+get-saml/drivers/geckodriver
 .idea/*
 .idea
-/drivers/chromedriver.exe
-/drivers/geckodriver.exe
+get-saml/drivers/chromedriver.exe
+get-saml/drivers/geckodriver.exe
