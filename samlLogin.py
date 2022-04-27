@@ -82,6 +82,7 @@ class SAMLLogin:
 
         if useDebug is False:
             browser_options.add_argument("--headless")
+            browser_options.add_argument("--no-sandbox")
 
         if browser == 'firefox':
             try:
