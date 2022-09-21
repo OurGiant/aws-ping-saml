@@ -1,5 +1,5 @@
-get-saml/drivers/geckodriver
+drivers/*
 .idea/*
 .idea
-get-saml/drivers/chromedriver.exe
-get-saml/drivers/geckodriver.exe
+__pycache__
+__pycache__/*
