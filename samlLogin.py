@@ -19,7 +19,7 @@ def pingSignIn(wait, driver, username, password, element=False, samlResponse=Non
     print(f'Use Federated Login Page')
     try:
         print("Enter Username")
-        usernameDialog = driver.find_element_by_id("username")
+        usernameDialog = driver.find_element(By.ID,"username")
         usernameDialog.clear()
         usernameDialog.send_keys(username)
     except se.NoSuchElementException as e:
@@ -27,7 +27,7 @@ def pingSignIn(wait, driver, username, password, element=False, samlResponse=Non
         return samlResponse
     try:
         print('Enter Password')
-        passwordDialog = driver.find_element_by_id("password")
+        passwordDialog = driver.find_element(By.ID,"password")
         passwordDialog.clear()
         passwordDialog.send_keys(password)
     except se.NoSuchElementException as e:
@@ -35,7 +35,7 @@ def pingSignIn(wait, driver, username, password, element=False, samlResponse=Non
         return samlResponse
     try:
         print('Click Button')
-        signOnButton = driver.find_element_by_class_name('ping-button')
+        signOnButton = driver.find_element(By.CLASS_NAME,'ping-button')
         wait.until(ec.element_to_be_clickable((By.CLASS_NAME, 'ping-button')))
         signOnButton.click()
     except se.ElementClickInterceptedException as e:
