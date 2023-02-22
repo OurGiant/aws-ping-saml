@@ -4,7 +4,7 @@ from boto3 import Session as BotoSession
 from botocore import errorfactory as err
 from samlLogin import SAMLLogin
 from samlConfig import Config, getRegion
-from guidedRun import Guide
+#from guidedRun import Guide
 import passUtils
 import argparse
 
@@ -17,7 +17,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--guideme", type=bool, help="run the utility using prompts")
 parser.add_argument("--profilename", type=str, help="the AWS profile name for this session")
 parser.add_argument("--region", type=str, help="the AWS profile name for this session")
-parser.add_argument("--duration", type=str,  help="desire token length, not to be greater than max length set by AWS administrator")
+parser.add_argument("--duration", type=str,  help="desire token length, not to be greater than max length set by AWS "
+                                                  "administrator")
 parser.add_argument("--browser", type=str, help="your browser of choice")
 parser.add_argument("--storedpw", type=bool, default=False, nargs='?', const=True, help="use a stored password")
 parser.add_argument("--gui", type=bool, default=False, nargs='?', const=True,
@@ -31,9 +32,9 @@ if len(sys.argv) == 0:
 else:
     args = parser.parse_args()
 
-if args.guideme is True:
-    guidedRun()
-    sys.exit(1)
+# if args.guideme is True:
+#     guidedRun()
+#     sys.exit(1)
 
 if args.profilename is None:
     print('A profile name must be specified')
@@ -62,11 +63,13 @@ else:
 
 
 if awsRegion is None and args.region is None:
-    print('Defaulting the region to us-east-1\nA custom region may be provided using the config file or the command line arguement.')
+    print('Defaulting the region to us-east-1\nA custom region may be provided using the config file or the command '
+          'line arguement.')
     awsRegion = 'us-east-1'
 
 if sessionDuration is None and args.duration is None:
-    print('Defaulting the session duration to one hour\nA custom duration may be provided using the config file or the command line arguement.')
+    print('Defaulting the session duration to one hour\nA custom duration may be provided using the config file or '
+          'the command line argument.')
     sessionDuration = 3600
 
 passKey, passFile = config.returnStoredPassConfig()
@@ -109,6 +112,7 @@ try:
         SAMLAssertion=SAMLResponse,
         DurationSeconds=int(sessionDuration)
     )
+
 except err.ClientError as e:
     print(f'Error assuming role.\nToken length: {str(len(SAMLResponse))}\nToken string:{str(SAMLResponse)}\n{str(e)}\n')
     exit(2)

@@ -7,17 +7,19 @@ import getpass
 from datetime import datetime as dt
 
 
-def evaluateStore(passKey):
+def evaluateStore(pass_key):
+    safe_perms = 0
     if sys.platform == 'win32':
-        safeperms = 16895
+        safe_perms = 16895
     if sys.platform == 'linux' or sys.platform == 'darwin':
-        safeperms = 16832
-    keyPath = os.path.dirname(passKey)
-    st = os.stat(keyPath)
+        safe_perms = 16832
+    key_path = os.path.dirname(pass_key)
+    st = os.stat(key_path)
     mode = int(st.st_mode)
-    if mode > safeperms:
+    if mode > safe_perms:
         print(
-            f'Permissions on your store directory are too permissive. Please secure this directory from reading by anyone other than the owner')
+            f'Permissions on your store directory are too permissive. Please secure this directory from reading by '
+            f'anyone other than the owner') 
         exit(1)
 
 
@@ -26,54 +28,57 @@ def getPassword():
     return password
 
 
-def generateKey(passKey):
+def generateKey(pass_key):
     key = Fernet.generate_key()
-    with open(passKey, "wb") as key_file:
+    with open(pass_key, "wb") as key_file:
         key_file.write(key)
     return key
 
 
-def evaluatePass(passFile, passKey):
-    passFileStats = os.stat(passFile)
-    passFileAge = int(passFileStats.st_ctime)
-    tsNow = int(dt.now().timestamp())
-    passCreated = tsNow - passFileAge
-    print(f'Password file age: {passCreated}')
-    if passCreated > 86400:
-        #remove the file, or windows won't be able to create a new one
-        os.remove(passFile)
+def evaluatePass(pass_file, pass_key):
+    pass_file_stats = os.stat(pass_file)
+    pass_file_age = int(pass_file_stats.st_ctime)
+    timestamp_now = int(dt.now().timestamp())
+    pass_created = timestamp_now - pass_file_age
+    print(f'Password file {pass_file} age: {pass_created}')
+    if pass_created > 84600:
+        # remove the file, or windows won't be able to create a new one
+        try:
+            os.remove(pass_file)
+        except OSError as e:
+            print(f'unable to delete {e}')
         print(f'Your password file is too old. Reenter the password')
         password = getPassword()
-        storePass(password, passKey, passFile)
+        storePass(password, pass_key, pass_file)
 
 
-def storePass(password, passKey, passFile):
-    evaluateStore(passKey)
-    key = generateKey(passKey)
-    encdPass = password.encode()
+def storePass(password, pass_key, pass_file):
+    evaluateStore(pass_key)
+    key = generateKey(pass_key)
+    encoded_pass = password.encode()
     f = Fernet(key)
-    encryptedPass = f.encrypt(encdPass)
-    with open(passFile, "wb") as passFile:
-        passFile.write(encryptedPass)
+    encrypted_pass = f.encrypt(encoded_pass)
+    with open(pass_file, "wb") as pass_file:
+        pass_file.write(encrypted_pass)
 
 
-def retrievePass(passKey, passFile):
+def retrievePass(pass_key, pass_file):
     try:
-        evaluatePass(passFile, passKey)
-        key = open(passKey, "rb").read()
-        encryptedPass = open(passFile, "rb").read()
+        evaluatePass(pass_file, pass_key)
+        key = open(pass_key, "rb").read()
+        encrypted_pass = open(pass_file, "rb").read()
     except (OSError, IOError) as e:
-        print(f'No password found. A new pass store will be created')
+        print(f'No password found. A new pass store will be created\n{e}')
         password = getPassword()
-        storePass(password, passKey, passFile)
+        storePass(password, pass_key, pass_file)
         return password
     f = Fernet(key)
     try:
-        decryptedPass = f.decrypt(encryptedPass)
-        return decryptedPass.decode()
+        decrypted_pass = f.decrypt(encrypted_pass)
+        return decrypted_pass.decode()
     except ce.InvalidKey as e:
         print(f'Your key is invalid: {str(e)}')
         password = getPassword()
-        generateKey(passKey)
-        storePass(password, passKey, passFile)
+        generateKey(pass_key)
+        storePass(password, pass_key, pass_file)
         return password

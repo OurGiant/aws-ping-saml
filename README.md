@@ -40,12 +40,12 @@ chmod 700 ~/.aws/ (linux/mac)
 pip3 install -r requirements.txt
 ```
 
-### MacOS Users Special Instuctions
+### MacOS Users Special Instructions
 After downloading the webdriver to INSTALL_DIR/drivers you may experience a security warning when attempting to execute the utility. To fix this, execute the following
 ```
 xattr -d com.apple.quarantine chromedriver
 ```
-This example is for chromedriver, but will also work on geckdriver (firefox)
+This example is for chromedriver, but will also work on geckodriver (firefox)
 
 ## Running the utility
 
@@ -75,11 +75,11 @@ This utility makes use of Selinium to run a headless browser session for login. 
 
 The along with creating the credentials in the aws credendial file, the gui option will open a browser with the AWS Console for the profile name selected. This shouldn't be used for long-term operations as the geckodriver browser is not known for speed. This is a quick way to gt a console session while still getting CLI credentials. 
 
-The debug option opens a brower window just before log in allowing the user to track activity then closes once the token is recieved. This a fully interactive browser window. 
+The debug option opens a browser window just before log in allowing the user to track activity then closes once the token is recieved. This a fully interactive browser window. 
 
 ### linux/mac shortcut
 
-a fuction alias can be added to .bash_aliased that allows the user to quickrun the utility like
+a function alias can be added to .bash_aliased that allows the user to quickrun the utility like
 
 ```
 getsaml cloud1-prod
