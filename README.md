@@ -49,8 +49,6 @@ This example is for chromedriver, but will also work on geckodriver (firefox)
 
 ## Running the utility
 
-Explain how to run the automated tests for this system
-
 ```
 python3 getCredentials.py --help
 usage: getCredentials.py [-h] [--profilename PROFILENAME] [--browser BROWSER] [--storedpw [STOREDPW]] [--gui [GUI]]

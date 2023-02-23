@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 
-def missingConfigFileMessage():
+def missing_config_file_message():
     message = "You are missing the core config file required for the proper operation of this utility.\nThis " \
               "file should be located in the .aws directory, found in your home directory "
     message = message + "\nThis file contains ini style configuration sections containing information about the " \
@@ -29,18 +29,6 @@ def missingConfigFileMessage():
     exit(2)
 
 
-def getRegion(type, args, useRegion=None):
-    if type == 'cli':
-        if args.region is None:
-            useRegion = 'us-east-1'
-        else:
-            useRegion = args.region
-    elif type == 'ask':
-        useRegion = input('Choose a valid region: [us-east-1, us-east-2, us-west-1, us-west-2 ] ')
-
-    return useRegion
-
-
 class Config:
     def __init__(self):
 
@@ -52,7 +40,7 @@ class Config:
 
         # READ IN SAML CONFIG IF EXISTS, EXIT IF NOT
         if Path(self.awsSAMLFile).is_file() is False:
-            missingConfigFileMessage()
+            missing_config_file_message()
 
         else:
             self.configSAML = configparser.ConfigParser()
@@ -82,14 +70,14 @@ class Config:
                 f'This program will create an AWS config file for you.'
             )
 
-            self.writeAWSConfig()
+            self.write_aws_config()
             self.configConfig = configparser.ConfigParser()
             self.configConfig.read(self.awsConfigFile)
 
         self.PassFile = self.AWSRoot + "saml.pass"
         self.PassKey = self.AWSRoot + "saml.key"
 
-    def writeAWSConfig(self):
+    def write_aws_config(self):
         with open(self.awsConfigFile, 'w') as config:
             for section in self.configSAML._sections:
                 if section.startswith('Fed-', 0, 4) is False:
@@ -97,109 +85,119 @@ class Config:
                         "[" + section + "]\nregion=" + self.configSAML._sections[section]['awsregion'] + "\n\n")
         config.close()
 
-    def verifyDrivers(self, userBrowser, drivers=None, driver=None):
+    def verify_drivers(self, user_browser, drivers=None, driver=None):
+        driver_files = None
         if sys.platform == 'linux' or sys.platform == 'darwin':
             os.environ['PATH'] += ":" + str(Path.cwd()) + '/drivers'
             drivers = self.executePath + '/drivers/'
-            driverFiles = {'chrome': 'chromedriver', 'firefox': 'geckodriver'}
+            driver_files = {'chrome': 'chromedriver', 'firefox': 'geckodriver'}
         elif sys.platform == 'win32':
             os.environ['PATH'] += ";" + str(Path.cwd()) + '\\drivers\\'
             drivers = self.executePath + '\\drivers\\'
-            driverFiles = {'chrome': 'chromedriver.exe', 'firefox': 'geckodriver.exe'}
+            driver_files = {'chrome': 'chromedriver.exe', 'firefox': 'geckodriver.exe'}
         else:
             print(f'Unknown OS type {sys.platform}')
             exit(2)
 
         try:
-            driver = str(drivers + driverFiles[userBrowser])
-        except KeyError as e:
+            driver = str(drivers + driver_files[user_browser])
+        except KeyError:
             print('unknown browser specified.browsers currently supported:')
-            for browser, driver in driverFiles.items():
+            for browser, driver in driver_files.items():
                 print(browser)
             exit(2)
 
         if Path(driver).is_file() is False:
-            print(f'the driver for browser {userBrowser} cannot be found at {str(drivers + driverFiles[userBrowser])}. '
+            print(f'the driver for browser {user_browser} cannot be found at {str(drivers + driver_files[user_browser])}. '
                   f'Please download the appropriate drive by referencing README.md'
                   )
             exit(2)
         return driver
 
-    def returnStoredPassConfig(self):
+    def return_stored_pass_config(self):
         return self.PassKey, self.PassFile
 
-    def readconfig(self, profileName):
+    def readconfig(self, aws_profile_name):
+        saml_provider = None
+        account_number = None
+        iam_role = None
+        username = None
         try:
-            self.configSAML.get(profileName, 'awsRegion')
+            self.configSAML.get(aws_profile_name, 'awsRegion')
         except configparser.NoSectionError as e:
-            print(f'No such AWS profile {profileName}')
+            print(f'No such AWS profile {aws_profile_name}')
             exit(2)
         try:
-            awsRegion = self.configSAML[profileName]['awsRegion']
+            aws_region = self.configSAML[aws_profile_name]['awsRegion']
         except KeyError:
-            awsRegion = None
+            aws_region = None
         try:
-            account_number = self.configSAML[profileName]['accountNumber']
+            account_number = self.configSAML[aws_profile_name]['accountNumber']
         except KeyError:
             print('An account number must be provided in the configuraton file')
             exit(2)
         try:
-            IAMRole = self.configSAML[profileName]['IAMRole']
+            iam_role = self.configSAML[aws_profile_name]['IAMRole']
         except KeyError:
             print('A ROLE number must be provided in the configuraton file')
             exit(2)
         try:
-            samlProvider = self.configSAML[profileName]['samlProvider']
+            saml_provider = self.configSAML[aws_profile_name]['samlProvider']
         except KeyError:
             print('A SAML provider must be provided in the configuraton file')
             exit(2)
         try:
-            username = self.configSAML[profileName]['username']
+            username = self.configSAML[aws_profile_name]['username']
         except KeyError:
             print('A username number must be provided in the configuraton file')
             exit(2)
 
-        guiName = self.configSAML[profileName]['guiName']
-
-        print(f'Reading configuration for SAML provider {samlProvider}')
-        firstPage = self.configSAML[samlProvider]['loginpage']
-
-        print(f'Reading login title for SAML provider {samlProvider}')
-        idp_login_title = str(self.configSAML[samlProvider]['loginTitle']).replace('"', '')
-
-        principle_arn = "arn:aws:iam::" + account_number + ":saml-provider/" + samlProvider[4:100]
-        roleARN = "arn:aws:iam::" + account_number + ":role/" + IAMRole
         try:
-            sessionDuration = self.configSAML[profileName]['sessionDuration']
+            gui_name = self.configSAML[aws_profile_name]['guiName']
         except KeyError:
-            sessionDuration = None
+            print('An account identifier from the SAML form must be provided in the configuraton file')
+            exit(2)
 
-        saml_provider_name = samlProvider.split('-', 1)[1]
-        return principle_arn, roleARN, username, awsRegion, firstPage, sessionDuration, saml_provider_name, idp_login_title
+        print(f'Reading configuration for SAML provider {saml_provider}')
+        first_page = self.configSAML[saml_provider]['loginpage']
 
-    def getGUICreds(self, profileName):
-        IAMRole = self.configSAML[profileName]['IAMRole']
-        guiName = self.configSAML[profileName]['guiName']
-        return IAMRole, guiName
+        print(f'Reading login title for SAML provider {saml_provider}')
+        idp_login_title: str = str(self.configSAML[saml_provider]['loginTitle']).replace('"', '')
 
-    def revokecreds(self, profileName):
-        self.configCredentials[profileName] = {}
-        self.configConfig["profile " + profileName] = {}
+        principle_arn = "arn:aws:iam::" + account_number + ":saml-provider/" + saml_provider[4:100]
+        role_arn = "arn:aws:iam::" + account_number + ":role/" + iam_role
+        try:
+            session_duration = self.configSAML[aws_profile_name]['sessionDuration']
+        except KeyError:
+            session_duration = None
+
+        saml_provider_name = saml_provider.split('-', 1)[1]
+        return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
+            saml_provider_name, idp_login_title, gui_name
+
+    def get_gui_creds(self, aws_profile_name):
+        iam_role = self.configSAML[aws_profile_name]['IAMRole']
+        gui_name = self.configSAML[aws_profile_name]['guiName']
+        return iam_role, gui_name
+
+    def revoke_creds(self, profile_name):
+        self.configCredentials[profile_name] = {}
+        self.configConfig["profile " + profile_name] = {}
         with open(self.awsConfigFile, "w") as config:
             self.configConfig.write(config)
         with open(self.awsCredentialsFile, "w") as credentials:
             self.configCredentials.write(credentials)
-        print(f'Revoked token for {profileName}')
+        print(f'Revoked token for {profile_name}')
         return
 
-    def writeconfig(self, AccessKeyId, SecretAccessKey, SessionToken, profileName, awsRegion):
-        self.configCredentials[profileName] = {}
-        self.configCredentials[profileName]['aws_access_key_id'] = AccessKeyId
-        self.configCredentials[profileName]['aws_secret_access_key'] = SecretAccessKey
-        self.configCredentials[profileName]['aws_session_token'] = SessionToken
+    def write_config(self, access_key_id, secret_access_key, aws_session_token, aws_profile_name, aws_region):
+        self.configCredentials[aws_profile_name] = {}
+        self.configCredentials[aws_profile_name]['aws_access_key_id'] = access_key_id
+        self.configCredentials[aws_profile_name]['aws_secret_access_key'] = secret_access_key
+        self.configCredentials[aws_profile_name]['aws_session_token'] = aws_session_token
 
-        self.configConfig["profile " + profileName] = {}
-        self.configConfig["profile " + profileName]['region'] = awsRegion
+        self.configConfig["profile " + aws_profile_name] = {}
+        self.configConfig["profile " + aws_profile_name]['region'] = aws_region
 
         with open(self.awsConfigFile, "w") as config:
             self.configConfig.write(config)

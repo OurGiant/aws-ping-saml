@@ -14,7 +14,7 @@ from samlConfig import Config
 config = Config()
 
 
-def oktaSignIn(wait, driver, username, password, element=False, samlResponse=None):
+def okta_sign_in(wait, driver, username, password, completed_login=False, saml_response=None):
     username_next_button = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/input'
     select_use_password = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[3]/div[2]/div[2]'
     password_next_button = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/input'
@@ -31,18 +31,18 @@ def oktaSignIn(wait, driver, username, password, element=False, samlResponse=Non
         print('Click Button')
         username_next_button = driver.find_element(By.XPATH, username_next_button)
         username_next_button.click()
-    except se.NoSuchElementException as e:
-        samlResponse = "CouldNotEnterFormData"
-        return samlResponse
+    except se.NoSuchElementException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
 
     try:
         wait.until(ec.element_to_be_clickable((By.XPATH, select_use_password)))
         print('Select Password Entry')
         use_password_button = driver.find_element(By.XPATH, select_use_password)
         use_password_button.click()
-    except se.ElementClickInterceptedException as e:
-        samlResponse = "CouldNotEnterFormData"
-        return samlResponse
+    except se.ElementClickInterceptedException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
 
     try:
         print("Enter Password")
@@ -53,92 +53,175 @@ def oktaSignIn(wait, driver, username, password, element=False, samlResponse=Non
         print('Click Button')
         password_next_button = driver.find_element(By.XPATH, password_next_button)
         password_next_button.click()
-    except se.NoSuchElementException as e:
-        samlResponse = "CouldNotEnterFormData"
-        return samlResponse
+    except se.NoSuchElementException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
 
     try:
         print('Select Push Notification')
         wait.until(ec.element_to_be_clickable((By.XPATH, select_push_notification)))
         username_next_button = driver.find_element(By.XPATH, select_push_notification)
         username_next_button.click()
-    except se.ElementClickInterceptedException as e:
-        samlResponse = "CouldNotEnterFormData"
-        return samlResponse
+    except se.ElementClickInterceptedException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
     try:
-        element = wait.until(ec.title_is("Amazon Web Services Sign-In"))
-    except se.TimeoutException as e:
+        completed_login = wait.until(ec.title_is("Amazon Web Services Sign-In"))
+    except se.TimeoutException:
         try:
             print('Button did not respond to click, press enter in password field')
             password_dialog.send_keys(Keys.ENTER)
-            element = wait.until(ec.title_is("Amazon Web Services Sign-In"))
+            completed_login = wait.until(ec.title_is("Amazon Web Services Sign-In"))
         except se.TimeoutException as e:
             print(f'Timeout waiting for MFA: {str(e)}')
             print('Saving screenshot for debugging')
             screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
             driver.save_screenshot(screenshot)
-    return element
+    return completed_login
 
-def pingSignIn(wait, driver, username, password, element=False, samlResponse=None):
+
+def ping_sign_in(wait, driver, username, password, completed_login=False, saml_response=None):
     wait.until(ec.element_to_be_clickable((By.CLASS_NAME, 'ping-button')))
     print(f'Use Federated Login Page')
     try:
         print("Enter Username")
-        usernameDialog = driver.find_element(By.ID, "username")
-        usernameDialog.clear()
-        usernameDialog.send_keys(username)
-    except se.NoSuchElementException as e:
-        samlResponse = "CouldNotEnterFormData"
-        return samlResponse
+        username_dialog = driver.find_element(By.ID, "username")
+        username_dialog.clear()
+        username_dialog.send_keys(username)
+    except se.NoSuchElementException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
     try:
         print('Enter Password')
-        passwordDialog = driver.find_element(By.ID, "password")
-        passwordDialog.clear()
-        passwordDialog.send_keys(password)
-    except se.NoSuchElementException as e:
-        samlResponse = "CouldNotEnterFormData"
-        return samlResponse
+        password_dialog = driver.find_element(By.ID, "password")
+        password_dialog.clear()
+        password_dialog.send_keys(password)
+    except se.NoSuchElementException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
     try:
         print('Click Button')
-        signOnButton = driver.find_element(By.CLASS_NAME, 'ping-button')
+        sign_on_button = driver.find_element(By.CLASS_NAME, 'ping-button')
         wait.until(ec.element_to_be_clickable((By.CLASS_NAME, 'ping-button')))
-        signOnButton.click()
-    except se.ElementClickInterceptedException as e:
-        samlResponse = "CouldNotEnterFormData"
-        return samlResponse
+        sign_on_button.click()
+    except se.ElementClickInterceptedException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
     try:
-        element = wait.until(ec.title_is("Amazon Web Services Sign-In"))
-    except se.TimeoutException as e:
+        completed_login = wait.until(ec.title_is("Amazon Web Services Sign-In"))
+    except se.TimeoutException:
         try:
             print('Button did not respond to click, press enter in password field')
-            passwordDialog.send_keys(Keys.ENTER)
-            element = wait.until(ec.title_is("Amazon Web Services Sign-In"))
+            password_dialog.send_keys(Keys.ENTER)
+            completed_login = wait.until(ec.title_is("Amazon Web Services Sign-In"))
         except se.TimeoutException as e:
             print(f'Timeout waiting for MFA: {str(e)}')
             print('Saving screenshot for debugging')
             screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
             driver.save_screenshot(screenshot)
-    return element
+    return completed_login
 
 
-def doPINGLogin(driver, wait, username, password, idp_login_title):
-    if driver.title == idp_login_title:
-        element = pingSignIn(wait, driver, username, password)
-    elif driver.title == "Amazon Web Services Sign-In":
-        element = True
-    else:
-        element = False
-    return element
+#
+# def use_ping_launch(driver, wait, username, password, idp_login_title):
+#     if driver.title == idp_login_title:
+#         completed_login = ping_sign_in(wait, driver, username, password)
+#     elif driver.title == "Amazon Web Services Sign-In":
+#         completed_login = True
+#     else:
+#         completed_login = False
+#     return completed_login
+#
+#
+# def use_okta_launch(driver, wait, username, password, idp_login_title):
+#     if driver.title == idp_login_title:
+#         completed_login = okta_sign_in(wait, driver, username, password)
+#     elif driver.title == "Amazon Web Services Sign-In":
+#         completed_login = True
+#     else:
+#         completed_login = False
+#     return completed_login
+#
+
+def select_role_from_saml(driver, gui_name, iam_role):
+    driver.maximize_window()
+    x = 0
+    saml_accounts = {}
+    while x < len(driver.find_elements(By.CLASS_NAME, "saml-account-name")):
+        saml_account = str(driver.find_elements(By.CLASS_NAME, "saml-account-name")[x].text)
+        saml_account = saml_account.replace('(', '').replace(')', '').replace(':', '')
+        saml_account_name = saml_account.split(' ')[1]
+        saml_account_token = saml_account.split(' ')[2]
+        saml_accounts.update({saml_account_name: saml_account_token})
+        x += 1
+
+    requested_account_token = saml_accounts.get(gui_name)
+
+    print(str(requested_account_token))
+    account_radio_id = "arn:aws:iam::" + requested_account_token + ":role/" + iam_role
+    account_radio = driver.find_element(By.ID, account_radio_id)
+    account_radio.click()
+    sign_in_button = driver.find_element(By.ID, "signin_button")
+    sign_in_button.click()
 
 
-def doOKTALogin(driver, wait, username, password, idp_login_title):
-    if driver.title == idp_login_title:
-        element = oktaSignIn(wait, driver, username, password)
-    elif driver.title == "Amazon Web Services Sign-In":
-        element = True
-    else:
-        element = False
-    return element
+def get_saml_response(driver):
+    while len(driver.find_elements(By.XPATH, '//*[@id="saml_form"]/input[@name="SAMLResponse"]')) < 1:
+        print('.', end='')
+
+    saml_response_completed_login = driver.find_elements(By.XPATH,
+                                                         '//*[@id="saml_form"]/input[@name="SAMLResponse"]')
+
+    saml_response = saml_response_completed_login[0].get_attribute("value")
+
+    return saml_response
+
+
+def load_browser(browser, driver_executable, use_debug, first_page, username, password):
+    is_driver_loaded: bool = False
+
+    if browser == 'firefox':
+        from selenium.webdriver.firefox.options import Options as Firefox
+        browser_options = Firefox()
+    elif browser == 'chrome':
+        from selenium.webdriver.chrome.options import Options as Chrome
+        browser_options = Chrome()
+        browser_options.add_argument("--disable-dev-shm-usage")
+
+    if sys.platform == 'win32' and browser == 'chrome':
+        try:
+            browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        except se.NoSuchAttributeException:
+            print('Unable to add Experimental Options')
+        # Chrome on Win32 requires basic authentication on PING page, prior to form authentication
+        first_page = first_page[0:8] + username + ':' + password + '@' + first_page[8:]
+
+    if use_debug is False:
+        browser_options.add_argument("--headless")
+        browser_options.add_argument("--no-sandbox")
+
+    if browser == 'firefox':
+        try:
+            driver = webdriver.Firefox(executable_path=driver_executable, options=browser_options)
+            is_driver_loaded = True
+        except OSError as e:
+            print(
+                f'There is something wrong with the driver installed for {browser}. '
+                f'Please refer to the documentation in the README on how to download and '
+                f'install the correct driver for your operting system {sys.platform}')
+            print(str(e))
+    elif browser == 'chrome':
+        try:
+            driver = webdriver.Chrome(executable_path=driver_executable, options=browser_options)
+            is_driver_loaded = True
+        except OSError as e:
+            print(
+                f'There is something wrong with the driver installed for {browser}. '
+                f'Please refer to the documentation in the README on how to download and '
+                f'install the correct driver for your operating system {sys.platform}')
+            print(str(e))
+
+    return driver, is_driver_loaded
 
 
 class SAMLLogin:
@@ -147,95 +230,48 @@ class SAMLLogin:
         self.executePath = str(Path(__file__).resolve().parents[0])
         pass
 
-    def browserLogin(self, username, password, firstPage, useDebug, useGUI, profileName, browser, driverExecutable,
-                     saml_provider_name, idp_login_title,
-                     browser_options=None, driver=None):
-        if browser == 'firefox':
-            from selenium.webdriver.firefox.options import Options as Firefox
-            browser_options = Firefox()
-        elif browser == 'chrome':
-            from selenium.webdriver.chrome.options import Options as Chrome
-            browser_options = Chrome()
-            browser_options.add_argument("--disable-dev-shm-usage")
+    def browser_login(self, username, password, first_page, use_debug, use_gui, browser,
+                      driver_executable, saml_provider_name, idp_login_title, iam_role, gui_name):
 
-        if sys.platform == 'win32' and browser == 'chrome':
-            try:
-                browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-            except se.NoSuchAttributeException:
-                print('Unable to add Experimental Options')
-            # Chrome on Win32 requires basic authentication on PING page, prior to form authentication
-            firstPage = firstPage[0:8] + username + ':' + password + '@' + firstPage[8:]
+        completed_login: bool = False
 
-        if useDebug is False:
-            browser_options.add_argument("--headless")
-            browser_options.add_argument("--no-sandbox")
+        driver, is_driver_loaded = load_browser(browser, driver_executable, use_debug, first_page, username, password)
 
-        if browser == 'firefox':
-            try:
-                driver = webdriver.Firefox(executable_path=driverExecutable, options=browser_options)
-                driverLoaded = True
-            except OSError as e:
-                print(
-                    f'There is something wrong with the driver installed for {browser}. Please refer to the documentation in the README on how to download and install the correct driver for your operting system {sys.platform}')
-                print(str(e))
-        elif browser == 'chrome':
-            try:
-                driver = webdriver.Chrome(executable_path=driverExecutable, options=browser_options)
-                driverLoaded = True
-            except OSError as e:
-                print(
-                    f'There is something wrong with the driver installed for {browser}. Please refer to the documentation in the README on how to download and install the correct driver for your operting system {sys.platform}')
-                print(str(e))
-
-        if driverLoaded is True:
+        if is_driver_loaded is True:
             driver.set_window_size(1024, 768)
 
             wait = WebDriverWait(driver, self.timeout)
-            driver.get(firstPage)
+            driver.get(first_page)
             try:
                 wait.until(ec.title_contains("Sign"))
-            except se.TimeoutException as e:
-                samlResponse = "CouldNameLoadSignInPage"
+            except se.TimeoutException:
+                saml_response = "CouldNameLoadSignInPage"
+                return saml_response
 
             print(f'Sign In Page Title is {driver.title}')
 
-            if saml_provider_name == 'PING':
-                element = doPINGLogin(driver, wait, username, password, idp_login_title)
-            if saml_provider_name == 'OKTA':
-                element = doOKTALogin(driver, wait, username, password, idp_login_title)
+            if driver.title == idp_login_title:
+                if saml_provider_name == 'PING':
+                    completed_login = ping_sign_in(wait, driver, username, password)
+                if saml_provider_name == 'OKTA':
+                    completed_login = okta_sign_in(wait, driver, username, password)
+            elif driver.title == "Amazon Web Services Sign-In":
+                completed_login = True
+            else:
+                completed_login = False
 
             time.sleep(2)
 
-            if element is True:
+            if completed_login is True:
                 print('Waiting for SAML Response....', end='')
-                while len(driver.find_elements(By.XPATH, '//*[@id="saml_form"]/input[@name="SAMLResponse"]')) < 1:
-                    print('.', end='')
-                samlResponseElement = driver.find_elements(By.XPATH, '//*[@id="saml_form"]/input[@name="SAMLResponse"]')
-                samlResponse = samlResponseElement[0].get_attribute("value")
-                if useGUI is not True:
+                saml_response = get_saml_response(driver)
+                if use_gui is not True:
                     driver.close()
                 else:
-                    driver.maximize_window()
-                    x = 0
-                    samlAccounts = {}
-                    while x < len(driver.find_elements(By.CLASS_NAME, "saml-account-name")):
-                        samlAccount = str(driver.find_elements(By.CLASS_NAME, "saml-account-name")[x].text)
-                        samlAccount = samlAccount.replace('(', '').replace(')', '').replace(':', '')
-                        samlAccountName = samlAccount.split(' ')[1]
-                        samlAccountToken = samlAccount.split(' ')[2]
-                        samlAccounts.update({samlAccountName: samlAccountToken})
-                        x += 1
-                    IAMRole, guiName = config.getGUICreds(profileName)
-                    requestedAccountToken = samlAccounts.get(guiName)
-
-                    print(str(requestedAccountToken))
-                    accountRadioId = "arn:aws:iam::" + requestedAccountToken + ":role/" + IAMRole
-                    accountRadio = driver.find_element(By.ID, accountRadioId)
-                    accountRadio.click()
-                    signInButton = driver.find_element(By.ID, "signin_button")
-                    signInButton.click()
+                    select_role_from_saml(driver, gui_name, iam_role)
             else:
-                samlResponse = "CouldNotCompleteMFA"
+                saml_response = "CouldNotCompleteMFA"
         else:
-            samlResponse = "CouldNotLoadWebDriver"
-        return samlResponse
+            saml_response = "CouldNotLoadWebDriver"
+
+        return saml_response
