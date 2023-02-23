@@ -10,8 +10,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 
 from samlConfig import Config
+import logging
 
-config = Config()
+VERSION = '1.1.0'
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(funcName)s %(levelname)s %(message)s')
+logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 
 def okta_sign_in(wait, driver, username, password, completed_login=False, saml_response=None):
@@ -22,13 +26,13 @@ def okta_sign_in(wait, driver, username, password, completed_login=False, saml_r
     username_field = "input28"
     password_field = "input95"
     wait.until(ec.element_to_be_clickable((By.XPATH, username_next_button)))
-    print(f'Use Okta Login')
+    logging.info('Use Okta Login')
     try:
-        print("Enter Username")
+        logging.info('Enter Username')
         username_dialog = driver.find_element(By.ID, username_field)
         username_dialog.clear()
         username_dialog.send_keys(username)
-        print('Click Button')
+        logging.info('Click Button')
         username_next_button = driver.find_element(By.XPATH, username_next_button)
         username_next_button.click()
     except se.NoSuchElementException:
@@ -37,7 +41,7 @@ def okta_sign_in(wait, driver, username, password, completed_login=False, saml_r
 
     try:
         wait.until(ec.element_to_be_clickable((By.XPATH, select_use_password)))
-        print('Select Password Entry')
+        logging.info('Select Password Entry')
         use_password_button = driver.find_element(By.XPATH, select_use_password)
         use_password_button.click()
     except se.ElementClickInterceptedException:
@@ -45,12 +49,12 @@ def okta_sign_in(wait, driver, username, password, completed_login=False, saml_r
         return saml_response
 
     try:
-        print("Enter Password")
+        logging.info('Enter Password')
         wait.until(ec.element_to_be_clickable((By.ID, password_field)))
         password_dialog = driver.find_element(By.ID, password_field)
         password_dialog.clear()
         password_dialog.send_keys(password)
-        print('Click Button')
+        logging.info('Click Button')
         password_next_button = driver.find_element(By.XPATH, password_next_button)
         password_next_button.click()
     except se.NoSuchElementException:
@@ -58,7 +62,7 @@ def okta_sign_in(wait, driver, username, password, completed_login=False, saml_r
         return saml_response
 
     try:
-        print('Select Push Notification')
+        logging.info('Select Push Notification')
         wait.until(ec.element_to_be_clickable((By.XPATH, select_push_notification)))
         username_next_button = driver.find_element(By.XPATH, select_push_notification)
         username_next_button.click()
@@ -69,12 +73,12 @@ def okta_sign_in(wait, driver, username, password, completed_login=False, saml_r
         completed_login = wait.until(ec.title_is("Amazon Web Services Sign-In"))
     except se.TimeoutException:
         try:
-            print('Button did not respond to click, press enter in password field')
+            logging.info('Button did not respond to click, press enter in password field')
             password_dialog.send_keys(Keys.ENTER)
             completed_login = wait.until(ec.title_is("Amazon Web Services Sign-In"))
-        except se.TimeoutException as e:
-            print(f'Timeout waiting for MFA: {str(e)}')
-            print('Saving screenshot for debugging')
+        except se.TimeoutException as password_click_timeout_error:
+            logging.info('Timeout waiting for MFA: '+str(password_click_timeout_error))
+            logging.info('Saving screenshot for debugging')
             screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
             driver.save_screenshot(screenshot)
     return completed_login
@@ -82,9 +86,9 @@ def okta_sign_in(wait, driver, username, password, completed_login=False, saml_r
 
 def ping_sign_in(wait, driver, username, password, completed_login=False, saml_response=None):
     wait.until(ec.element_to_be_clickable((By.CLASS_NAME, 'ping-button')))
-    print(f'Use Federated Login Page')
+    logging.info('Use Federated Login Page')
     try:
-        print("Enter Username")
+        logging.info('Enter Username')
         username_dialog = driver.find_element(By.ID, "username")
         username_dialog.clear()
         username_dialog.send_keys(username)
@@ -92,7 +96,7 @@ def ping_sign_in(wait, driver, username, password, completed_login=False, saml_r
         saml_response = "CouldNotEnterFormData"
         return saml_response
     try:
-        print('Enter Password')
+        logging.info('Enter Password')
         password_dialog = driver.find_element(By.ID, "password")
         password_dialog.clear()
         password_dialog.send_keys(password)
@@ -100,7 +104,7 @@ def ping_sign_in(wait, driver, username, password, completed_login=False, saml_r
         saml_response = "CouldNotEnterFormData"
         return saml_response
     try:
-        print('Click Button')
+        logging.info('Click Button')
         sign_on_button = driver.find_element(By.CLASS_NAME, 'ping-button')
         wait.until(ec.element_to_be_clickable((By.CLASS_NAME, 'ping-button')))
         sign_on_button.click()
@@ -111,12 +115,12 @@ def ping_sign_in(wait, driver, username, password, completed_login=False, saml_r
         completed_login = wait.until(ec.title_is("Amazon Web Services Sign-In"))
     except se.TimeoutException:
         try:
-            print('Button did not respond to click, press enter in password field')
+            logging.info('Button did not respond to click, press enter in password field')
             password_dialog.send_keys(Keys.ENTER)
             completed_login = wait.until(ec.title_is("Amazon Web Services Sign-In"))
-        except se.TimeoutException as e:
-            print(f'Timeout waiting for MFA: {str(e)}')
-            print('Saving screenshot for debugging')
+        except se.TimeoutException as mfa_timeout_error:
+            logging.info('Timeout waiting for MFA: '+str(mfa_timeout_error))
+            logging.info('Saving screenshot for debugging')
             screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
             driver.save_screenshot(screenshot)
     return completed_login
@@ -157,8 +161,7 @@ def select_role_from_saml(driver, gui_name, iam_role):
 
     requested_account_token = saml_accounts.get(gui_name)
 
-    print(str(requested_account_token))
-    account_radio_id = "arn:aws:iam::" + requested_account_token + ":role/" + iam_role
+    account_radio_id = iam_role
     account_radio = driver.find_element(By.ID, account_radio_id)
     account_radio.click()
     sign_in_button = driver.find_element(By.ID, "signin_button")
@@ -177,8 +180,17 @@ def get_saml_response(driver):
     return saml_response
 
 
+def missing_browser_message(browser, error):
+    message = 'There is something wrong with the driver installed for '+browser+'.'
+    message = message + 'Please refer to the documentation in the README on how to download and '
+    message = message + 'install the correct driver for your operating system ' + sys.platform
+    logging.critical(message)
+    logging.critical(str(error))
+
+
 def load_browser(browser, driver_executable, use_debug, first_page, username, password):
     is_driver_loaded: bool = False
+    browser_options = None
 
     if browser == 'firefox':
         from selenium.webdriver.firefox.options import Options as Firefox
@@ -192,7 +204,7 @@ def load_browser(browser, driver_executable, use_debug, first_page, username, pa
         try:
             browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
         except se.NoSuchAttributeException:
-            print('Unable to add Experimental Options')
+            logging.info('Unable to add Experimental Options')
         # Chrome on Win32 requires basic authentication on PING page, prior to form authentication
         first_page = first_page[0:8] + username + ':' + password + '@' + first_page[8:]
 
@@ -204,22 +216,14 @@ def load_browser(browser, driver_executable, use_debug, first_page, username, pa
         try:
             driver = webdriver.Firefox(executable_path=driver_executable, options=browser_options)
             is_driver_loaded = True
-        except OSError as e:
-            print(
-                f'There is something wrong with the driver installed for {browser}. '
-                f'Please refer to the documentation in the README on how to download and '
-                f'install the correct driver for your operting system {sys.platform}')
-            print(str(e))
+        except OSError as missing_browser_driver_error:
+            missing_browser_message(browser, missing_browser_driver_error)
     elif browser == 'chrome':
         try:
             driver = webdriver.Chrome(executable_path=driver_executable, options=browser_options)
             is_driver_loaded = True
-        except OSError as e:
-            print(
-                f'There is something wrong with the driver installed for {browser}. '
-                f'Please refer to the documentation in the README on how to download and '
-                f'install the correct driver for your operating system {sys.platform}')
-            print(str(e))
+        except OSError as missing_browser_driver_error:
+            missing_browser_message(browser, missing_browser_driver_error)
 
     return driver, is_driver_loaded
 
@@ -248,7 +252,7 @@ class SAMLLogin:
                 saml_response = "CouldNameLoadSignInPage"
                 return saml_response
 
-            print(f'Sign In Page Title is {driver.title}')
+            logging.info('Sign In Page Title is ' + driver.title)
 
             if driver.title == idp_login_title:
                 if saml_provider_name == 'PING':
@@ -263,7 +267,7 @@ class SAMLLogin:
             time.sleep(2)
 
             if completed_login is True:
-                print('Waiting for SAML Response....', end='')
+                logging.info('Waiting for SAML Response.')
                 saml_response = get_saml_response(driver)
                 if use_gui is not True:
                     driver.close()
