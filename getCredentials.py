@@ -55,10 +55,8 @@ login = SAMLLogin()
 
 driverExecutable = config.verifyDrivers(browser)
 
-if args.duration is None:
-    principleARN, roleARN, username, awsRegion, firstPage, sessionDuration = config.readconfig(profileName)
-else:
-    principleARN, roleARN, username, awsRegion, firstPage, sessionDuration = config.readconfig(profileName)
+principleARN, roleARN, username, awsRegion, firstPage, sessionDuration, saml_provider_name, idp_login_title = config.readconfig(profileName)
+if args.duration is not None:
     sessionDuration = args.duration
 
 
@@ -94,7 +92,7 @@ except ValueError:
     print(f'Invalid Region {useRegion}')
     useRegion = getRegion('ask', args)
 
-SAMLResponse = login.browserLogin(username, password, firstPage, useDebug, useGUI, profileName, browser, driverExecutable)
+SAMLResponse = login.browserLogin(username, password, firstPage, useDebug, useGUI, profileName, browser, driverExecutable, saml_provider_name, idp_login_title)
 
 print(f'SAML Response Size: {str(len(SAMLResponse))}')
 

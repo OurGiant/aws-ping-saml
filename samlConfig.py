@@ -12,7 +12,7 @@ def missingConfigFileMessage():
     message = message + "\nFor example:"
     message = message + "\n\t[cloud1-prod]"
     message = message + "\n\tawsRegion = us-east-1"
-    message = message + "\n\taccountNumber ="
+    message = message + "\n\taccount_number ="
     message = message + "\n\tIAMRole = PING-DevOps"
     message = message + "\n\tsamlProvider = PING"
     message = message + "\n\tusername=adUsername"
@@ -53,7 +53,7 @@ class Config:
         # READ IN SAML CONFIG IF EXISTS, EXIT IF NOT
         if Path(self.awsSAMLFile).is_file() is False:
             missingConfigFileMessage()
-            
+
         else:
             self.configSAML = configparser.ConfigParser()
             self.configSAML.read(self.awsSAMLFile)
@@ -135,11 +135,11 @@ class Config:
             print(f'No such AWS profile {profileName}')
             exit(2)
         try:
-           awsRegion = self.configSAML[profileName]['awsRegion']
+            awsRegion = self.configSAML[profileName]['awsRegion']
         except KeyError:
             awsRegion = None
         try:
-            accountNumber = self.configSAML[profileName]['accountNumber']
+            account_number = self.configSAML[profileName]['accountNumber']
         except KeyError:
             print('An account number must be provided in the configuraton file')
             exit(2)
@@ -164,13 +164,18 @@ class Config:
         print(f'Reading configuration for SAML provider {samlProvider}')
         firstPage = self.configSAML[samlProvider]['loginpage']
 
-        principleARN = "arn:aws:iam::" + accountNumber + ":saml-provider/" + samlProvider[4:100]
-        roleARN = "arn:aws:iam::" + accountNumber + ":role/" + IAMRole
+        print(f'Reading login title for SAML provider {samlProvider}')
+        idp_login_title = str(self.configSAML[samlProvider]['loginTitle']).replace('"', '')
+
+        principle_arn = "arn:aws:iam::" + account_number + ":saml-provider/" + samlProvider[4:100]
+        roleARN = "arn:aws:iam::" + account_number + ":role/" + IAMRole
         try:
             sessionDuration = self.configSAML[profileName]['sessionDuration']
         except KeyError:
             sessionDuration = None
-        return principleARN, roleARN, username, awsRegion, firstPage,sessionDuration
+
+        saml_provider_name = samlProvider.split('-', 1)[1]
+        return principle_arn, roleARN, username, awsRegion, firstPage, sessionDuration, saml_provider_name, idp_login_title
 
     def getGUICreds(self, profileName):
         IAMRole = self.configSAML[profileName]['IAMRole']
