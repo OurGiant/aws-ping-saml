@@ -200,7 +200,11 @@ def main():
     if len(get_sts) > 0:
         aws_access_id, aws_secret_key, aws_session_token, sts_expiration, profile_block = get_sts_details(get_sts, aws_region)
 
-        config.write_config(aws_access_id, aws_secret_key, aws_session_token, aws_profile_name, aws_region)
+        if config.validate_aws_cred_format(aws_access_id,aws_secret_key,aws_session_token):
+            config.write_config(aws_access_id, aws_secret_key, aws_session_token, aws_profile_name, aws_region)
+        else:
+            logging.critical('There seems to be an issue with one of the credentials generated, please try again')
+            exit(2)
 
         aws_user_id = get_aws_caller_id(aws_profile_name)
 

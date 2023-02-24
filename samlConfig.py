@@ -1,5 +1,6 @@
 import configparser
 import os
+import re
 import sys
 from pathlib import Path
 import logging
@@ -202,3 +203,16 @@ class Config:
 
         with open(self.awsCredentialsFile, "w") as credentials:
             self.configCredentials.write(credentials)
+
+    def validate_aws_cred_format(self, aws_access_id, aws_secret_key, aws_session_token):
+        valid_key_pattern = re.compile(r'^[a-zA-Z0-9]{16,128}$')
+        valid_secret_pattern = re.compile(r'^[a-zA-Z0-9\/+]{30,50}$')
+        valid_token_pattern = re.compile(r'^[a-zA-Z0-9\/+]{400,500}$')
+
+        if not (bool(valid_key_pattern.match(aws_access_id)) or \
+                bool(valid_secret_pattern.match(aws_secret_key)) or \
+                bool(valid_token_pattern.match(aws_session_token))
+        ):
+            return False
+        else:
+            return True
