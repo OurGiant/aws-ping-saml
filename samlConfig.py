@@ -82,6 +82,7 @@ class Config:
 
         self.PassFile = self.AWSRoot + "saml.pass"
         self.PassKey = self.AWSRoot + "saml.key"
+        self.AccountMap = self.AWSRoot + "account-map.json"
 
     def write_aws_config(self):
         with open(self.awsConfigFile, 'w') as config:
@@ -123,7 +124,10 @@ class Config:
     def return_stored_pass_config(self):
         return self.PassKey, self.PassFile
 
-    def read_config(self, aws_profile_name):
+    def return_account_map_file(self):
+        return self.AccountMap
+
+    def read_config(self, aws_profile_name, text_menu, use_idp):
         saml_provider = None
         account_number = None
         iam_role = None
@@ -132,34 +136,43 @@ class Config:
         first_page = None
         idp_login_title = None
         session_duration = None
+        saml_provider_name = None
+        principle_arn = None
+        role_arn = None
 
-        try:
-            self.configSAML.get(aws_profile_name, 'awsRegion')
-        except configparser.NoSectionError as e:
-            logging.critical('No such AWS profile ' + aws_profile_name)
-            raise SystemExit(1)
+        if text_menu is False:
+            try:
+                self.configSAML.get(aws_profile_name, 'samlProvider')
+            except configparser.NoSectionError as e:
+                logging.critical('No such AWS profile ' + aws_profile_name)
+                raise SystemExit(1)
 
-        logging.info('Reading configuration info for profile ' + aws_profile_name)
-        try:
-            aws_region = self.configSAML[aws_profile_name]['awsRegion']
-        except KeyError:
-            aws_region = "None"
-        try:
-            session_duration = self.configSAML[aws_profile_name]['sessionDuration']
-        except KeyError:
-            session_duration = "None"
-        try:
-            account_number = self.configSAML[aws_profile_name]['accountNumber']
-            iam_role = self.configSAML[aws_profile_name]['IAMRole']
-            saml_provider = self.configSAML[aws_profile_name]['samlProvider']
-            username = self.configSAML[aws_profile_name]['username']
-            gui_name = self.configSAML[aws_profile_name]['guiName']
-        except KeyError as missing_config_error:
-            missing_config_property: str = missing_config_error.args[0]
-            logging.critical('Missing configuration property: ' + missing_config_property)
-            raise SystemExit(1)
+            logging.info('Reading configuration info for profile ' + aws_profile_name)
+            try:
+                aws_region = self.configSAML[aws_profile_name]['awsRegion']
+            except KeyError:
+                aws_region = "None"
+            try:
+                session_duration = self.configSAML[aws_profile_name]['sessionDuration']
+            except KeyError:
+                session_duration = "None"
+            try:
+                account_number = self.configSAML[aws_profile_name]['accountNumber']
+                iam_role = self.configSAML[aws_profile_name]['IAMRole']
+                saml_provider = self.configSAML[aws_profile_name]['samlProvider']
+                username = self.configSAML[aws_profile_name]['username']
+                gui_name = self.configSAML[aws_profile_name]['guiName']
+            except KeyError as missing_config_error:
+                missing_config_property: str = missing_config_error.args[0]
+                logging.critical('Missing configuration property: ' + missing_config_property)
+                raise SystemExit(1)
+            role_arn = "arn:aws:iam::" + account_number + ":role/" + iam_role
+            saml_provider_name = saml_provider.split('-', 1)[1]
+            principle_arn = "arn:aws:iam::" + account_number + ":saml-provider/" + saml_provider_name
+        else:
+            saml_provider = use_idp
+            saml_provider_name = use_idp.split('-', 1)[1]
 
-        saml_provider_name = saml_provider.split('-', 1)[1]
         logging.info('Reading configuration for SAML provider ' + saml_provider_name)
         try:
             self.configSAML.get(saml_provider, 'loginpage')
@@ -174,8 +187,8 @@ class Config:
             logging.critical('Missing SAML provider configuration property ' + missing_saml_provider_property)
             raise SystemExit(1)
 
-        principle_arn = "arn:aws:iam::" + account_number + ":saml-provider/" + saml_provider_name
-        role_arn = "arn:aws:iam::" + account_number + ":role/" + iam_role
+
+
 
         return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
             saml_provider_name, idp_login_title, gui_name

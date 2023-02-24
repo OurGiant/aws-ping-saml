@@ -1,16 +1,8 @@
 import base64
-import sys
-import time
-import uuid
 import logging
-from pathlib import Path
+from tabulate import tabulate
 
-from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common import exceptions as se
 import xml.etree.ElementTree as ET
 
 from version import __version__
@@ -40,7 +32,7 @@ def select_role_from_saml_page(driver, gui_name, iam_role):
     sign_in_button.click()
 
 
-def get_roles_from_saml_response(saml_response):
+def get_roles_from_saml_response(saml_response,account_map):
     decoded_saml_bytes = base64.b64decode(saml_response)
     decoded_saml = decoded_saml_bytes.decode('utf-8')
     root = ET.fromstring(decoded_saml)
@@ -49,6 +41,12 @@ def get_roles_from_saml_response(saml_response):
 
     # Extract the AWS role ARN and session token from the assertion
     all_roles = []
+    if account_map is None:
+        table_object = [['Id', 'Account', 'Role']]
+    else:
+        table_object = [['Id', 'Account', 'Name', 'Role']]
+
+    role_id = 0
     for attribute in assertion_element.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}Attribute'):
         if attribute.get('Name') == 'https://aws.amazon.com/SAML/Attributes/Role':
             for value in attribute.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeValue'):
@@ -57,17 +55,25 @@ def get_roles_from_saml_response(saml_response):
                     principle_arn = str(value.text).split(',', 1)[0]
                     account_number = role_arn.split(':')[4]
                     role_name = (role_arn.split(':')[5]).split('/')[1]
-                    selector_object = {"arn": role_arn, "account": account_number, "name": role_name, "principle":principle_arn}
+                    selector_object = {"id": role_id, "arn": role_arn, "account": account_number, "name": role_name,
+                                       "principle": principle_arn}
                     all_roles.append(selector_object)
-    return all_roles
+                    if account_map is None:
+                        table_object.append([role_id, account_number, role_name])
+                    else:
+                        for account in account_map:
+                            if account['number'] == account_number:
+                                account_name = account['name']
+                        table_object.append([role_id, account_number, account_name, role_name])
+                    role_id += 1
+    return all_roles, table_object
 
 
-def select_role_from_text_menu(all_roles):
-    role_id = 0
+def select_role_from_text_menu(all_roles, table_object):
     sorted_accounts = sorted(all_roles, key=lambda d: d['account'])
-    for role in sorted_accounts:
-        print(f'Id: {role_id} Account: {role["account"]} Role: {role["name"]}')
-        role_id += 1
+    #for role in sorted_accounts:
+        #print(f'Id: {role["role_id"]} Account: {role["account"]} Role: {role["name"]}')
+    print(tabulate(table_object, headers='firstrow', tablefmt='fancy_grid'))
 
     selected_role_id: int = int(input('Enter the Id of the role to assume: '))
     selected_role = all_roles[selected_role_id]
