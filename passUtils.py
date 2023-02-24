@@ -1,13 +1,33 @@
+# standard library imports
 import sys
-
-from cryptography.fernet import Fernet
-from cryptography import exceptions as ce
 import os
+from datetime import datetime
+import logging
 import getpass
-from datetime import datetime as dt
+
+# third-party imports
+from cryptography.fernet import Fernet, InvalidToken
+
+from version import __version__
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(funcName)s %(levelname)s %(message)s')
+logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 
-def evaluateStore(pass_key):
+def check_store_perms(pass_key):
+    """
+    Check the permissions on the directory containing the password store file.
+
+    Args:
+        pass_key (str): The path to the password store file.
+
+    Raises:
+        SystemExit: If the permissions on the directory are too permissive.
+
+    Returns:
+        None.
+
+    """
     safe_perms = 0
     if sys.platform == 'win32':
         safe_perms = 16895
@@ -17,68 +37,156 @@ def evaluateStore(pass_key):
     st = os.stat(key_path)
     mode = int(st.st_mode)
     if mode > safe_perms:
-        print(
-            f'Permissions on your store directory are too permissive. Please secure this directory from reading by '
-            f'anyone other than the owner') 
-        exit(1)
+        logging.critical('Permissions on your store directory are too permissive. Please secure this directory from '
+                         'reading by anyone other than the owner')
+        raise SystemExit(1)
 
 
-def getPassword():
+
+"""
+Function: get_password
+-----------------------
+This function prompts the user to enter a password and returns the entered password. If the entered password is empty,
+the function will prompt the user to enter the password again until a non-empty password is entered.
+
+Returns:
+- password (str): the entered password
+"""
+def get_password():
     password = getpass.getpass(prompt='Enter password: ')
+    while len(password) == 0:
+        password = getpass.getpass(prompt='Password cannot be empty. Enter password: ')
     return password
 
 
-def generateKey(pass_key):
+
+def check_password_status(pass_file, pass_key):
+    """
+    Check the age of a password file and prompt the user to create a new one if it's too old.
+
+    Args:
+        pass_file (str): Path to the password file.
+        pass_key (str): Path to the key file.
+
+    Returns:
+        None
+    """
+    # Get the creation time of the password file and calculate its age
+    pass_file_stats = os.stat(pass_file)
+    pass_file_age = int(pass_file_stats.st_ctime)
+    timestamp_now = int(datetime.now().timestamp())
+    pass_created = timestamp_now - pass_file_age
+
+    # Log the age of the password file
+    logging.info('Password file age: '+str(pass_created))
+
+    # If the password file is too old, delete it and prompt the user to create a new password
+    if pass_created > 84600:
+        # Remove the file, or Windows won't be able to create a new one
+        try:
+            os.remove(pass_file)
+        except OSError as remove_file_error:
+            logging.critical('Unable to delete password file: ' + str(remove_file_error))
+
+        # Prompt the user to create a new password
+        logging.warning('Your password file is too old. Reenter the password')
+        password = get_password()
+        store_password(password, pass_key, pass_file)
+
+
+def generate_pass_store_key(pass_key):
+    """
+    Generate a Fernet key and store it in a key file.
+
+    Args:
+        pass_key (str): Path to the key file.
+
+    Returns:
+        bytes: The generated key.
+    """
+    # Generate a Fernet key
     key = Fernet.generate_key()
+
+    # Write the key to the key file
     with open(pass_key, "wb") as key_file:
         key_file.write(key)
+    key_file.close()
+
+    # Return the generated key
     return key
 
 
-def evaluatePass(pass_file, pass_key):
-    pass_file_stats = os.stat(pass_file)
-    pass_file_age = int(pass_file_stats.st_ctime)
-    timestamp_now = int(dt.now().timestamp())
-    pass_created = timestamp_now - pass_file_age
-    print(f'Password file {pass_file} age: {pass_created}')
-    if pass_created > 84600:
-        # remove the file, or windows won't be able to create a new one
-        try:
-            os.remove(pass_file)
-        except OSError as e:
-            print(f'unable to delete {e}')
-        print(f'Your password file is too old. Reenter the password')
-        password = getPassword()
-        storePass(password, pass_key, pass_file)
+def store_password(password, pass_key, pass_file):
+    """
+    Encrypt and store a password in a file using a key.
 
+    Args:
+        password (str): The password to encrypt and store.
+        pass_key (str): Path to the key file.
+        pass_file (str): Path to the password file.
 
-def storePass(password, pass_key, pass_file):
-    evaluateStore(pass_key)
-    key = generateKey(pass_key)
+    Returns:
+        None
+    """
+    # Check if the key file is writeable
+    check_store_perms(pass_key)
+
+    # Generate or retrieve the key from the key file
+    key = generate_pass_store_key(pass_key)
+
+    # Encode the password to bytes using UTF-8 encoding
     encoded_pass = password.encode()
+
+    # Create a Fernet object with the key
     f = Fernet(key)
+
+    # Encrypt the password using the Fernet object
     encrypted_pass = f.encrypt(encoded_pass)
-    with open(pass_file, "wb") as pass_file:
-        pass_file.write(encrypted_pass)
+
+    # Write the encrypted password to the password file
+    with open(pass_file, "wb") as pass_file_handle:
+        pass_file_handle.write(encrypted_pass)
+    pass_file_handle.close()
+
+    # Return nothing
+    return
 
 
-def retrievePass(pass_key, pass_file):
+def retrieve_password(pass_key, pass_file):
+    """
+    Retrieve a password from an encrypted file using a key.
+
+    Args:
+        pass_key (str): Path to the key file.
+        pass_file (str): Path to the encrypted password file.
+
+    Returns:
+        str: The decrypted password.
+    """
     try:
-        evaluatePass(pass_file, pass_key)
-        key = open(pass_key, "rb").read()
-        encrypted_pass = open(pass_file, "rb").read()
-    except (OSError, IOError) as e:
-        print(f'No password found. A new pass store will be created\n{e}')
-        password = getPassword()
-        storePass(password, pass_key, pass_file)
+        check_password_status(pass_file, pass_key)
+        with open(pass_key, "rb") as pass_key_handle:
+            key = pass_key_handle.read()
+        pass_key_handle.close()
+
+        with open(pass_file, "rb") as pass_file_handle:
+            encrypted_pass = pass_file_handle.read()
+        pass_file_handle.close()
+
+    except FileNotFoundError as no_password_file_error:
+        logging.warning('No password found. A new pass store will be created')
+        logging.warning(str(no_password_file_error))
+        password = get_password()
+        store_password(password, pass_key, pass_file)
         return password
-    f = Fernet(key)
+
     try:
+        f = Fernet(key)
         decrypted_pass = f.decrypt(encrypted_pass)
         return decrypted_pass.decode()
-    except ce.InvalidKey as e:
-        print(f'Your key is invalid: {str(e)}')
-        password = getPassword()
-        generateKey(pass_key)
-        storePass(password, pass_key, pass_file)
+    except InvalidToken as invalid_key_error:
+        logging.critical('Your key is invalid: '+str(invalid_key_error))
+        password = get_password()
+        generate_pass_store_key(pass_key)
+        store_password(password, pass_key, pass_file)
         return password

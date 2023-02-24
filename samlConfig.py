@@ -1,11 +1,12 @@
 import configparser
+import logging
 import os
 import re
 import sys
-from pathlib import Path
-import logging
 
-VERSION = '1.1.0'
+from pathlib import Path
+
+from version import __version__
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(funcName)s %(levelname)s %(message)s')
 logging.getLogger('boto').setLevel(logging.CRITICAL)
@@ -33,7 +34,7 @@ def missing_config_file_message():
                         "startSSO.ping?PartnerSpId = urn:amazon: webservices "
     message = message + "\n\nA sample file can be found in the same repository as the utility"
     print(message)
-    exit(2)
+    raise SystemExit(1)
 
 
 class Config:
@@ -102,7 +103,7 @@ class Config:
             driver_files = {'chrome': 'chromedriver.exe', 'firefox': 'geckodriver.exe'}
         else:
             logging.critical('Unknown OS type ' + sys.platform)
-            exit(2)
+            raise SystemExit(1)
 
         try:
             driver = str(drivers + driver_files[user_browser])
@@ -110,19 +111,19 @@ class Config:
             logging.critical('unknown browser specified.browsers currently supported:')
             for browser, driver in driver_files.items():
                 logging.critical(browser)
-            exit(2)
+            raise SystemExit(1)
 
         if Path(driver).is_file() is False:
             logging.critical('The driver for browser ' + user_browser + ' cannot be found at ' +
                              str(drivers + driver_files[user_browser]) +
                              '.Please download the appropriate drive by referencing README.md')
-            exit(2)
+            raise SystemExit(1)
         return driver
 
     def return_stored_pass_config(self):
         return self.PassKey, self.PassFile
 
-    def readconfig(self, aws_profile_name):
+    def read_config(self, aws_profile_name):
         saml_provider = None
         account_number = None
         iam_role = None
@@ -136,7 +137,7 @@ class Config:
             self.configSAML.get(aws_profile_name, 'awsRegion')
         except configparser.NoSectionError as e:
             logging.critical('No such AWS profile ' + aws_profile_name)
-            exit(2)
+            raise SystemExit(1)
 
         logging.info('Reading configuration info for profile ' + aws_profile_name)
         try:
@@ -156,7 +157,7 @@ class Config:
         except KeyError as missing_config_error:
             missing_config_property: str = missing_config_error.args[0]
             logging.critical('Missing configuration property: ' + missing_config_property)
-            exit(2)
+            raise SystemExit(1)
 
         saml_provider_name = saml_provider.split('-', 1)[1]
         logging.info('Reading configuration for SAML provider ' + saml_provider_name)
@@ -164,14 +165,14 @@ class Config:
             self.configSAML.get(saml_provider, 'loginpage')
         except configparser.NoSectionError:
             logging.critical('No such SAML provider ' + saml_provider_name)
-            exit(2)
+            raise SystemExit(1)
         try:
             first_page = self.configSAML[saml_provider]['loginpage']
             idp_login_title = str(self.configSAML[saml_provider]['loginTitle']).replace('"', '')
         except KeyError as missing_saml_provider_error:
             missing_saml_provider_property: str = missing_saml_provider_error.args[0]
             logging.critical('Missing SAML provider configuration property ' + missing_saml_provider_property)
-            exit(2)
+            raise SystemExit(1)
 
         principle_arn = "arn:aws:iam::" + account_number + ":saml-provider/" + saml_provider_name
         role_arn = "arn:aws:iam::" + account_number + ":role/" + iam_role

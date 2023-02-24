@@ -1,15 +1,19 @@
 # coding=utf-8
 import datetime
 import sys
-from boto3 import Session as BotoSession
-from botocore import errorfactory as err
-from samlLogin import SAMLLogin
-from samlConfig import Config
-import passUtils
 import argparse
 import logging
 
-VERSION = '1.1.0'
+
+from boto3 import Session as BotoSession
+from botocore import errorfactory as err
+
+from samlLogin import SAMLLogin
+from samlConfig import Config
+import passUtils
+import SAMLSelector
+
+from version import __version__
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(funcName)s %(levelname)s %(message)s')
 logging.getLogger('boto').setLevel(logging.CRITICAL)
@@ -18,6 +22,7 @@ logging.getLogger('boto').setLevel(logging.CRITICAL)
 class Utilities:
     def __init__(self):
 
+        self.text_menu = None
         self.aws_region: str = "None"
         self.session_duration: int = 0
         self.store_password: bool = False
@@ -42,12 +47,14 @@ class Utilities:
                                  help="use a stored password")
         self.parser.add_argument("--gui", type=bool, default=False, nargs='?', const=True,
                                  help="open the session in a browser as well")
+        self.parser.add_argument("--textmenu", type=bool, default=False, nargs='?', const=True,
+                                 help="display text menu of accounts. cannot be used with gui option")
         self.parser.add_argument("--debug", type=bool, default=False, nargs='?', const=True,
                                  help="show browser during SAML attempt")
         if len(sys.argv) == 0:
             logging.critical("Arguments required")
             self.parser.print_help()
-            exit(1)
+            raise SystemExit(1)
         else:
             self.args = self.parser.parse_args()
 
@@ -64,7 +71,11 @@ class Utilities:
             self.aws_profile_name = self.args.profilename
             if any(x in self.aws_profile_name for x in self.illegal_characters):
                 logging.critical('bad characters in profile name, only alphanumeric and dash are allowed. ')
-                exit(2)
+                raise SystemExit(1)
+
+        if self.args.gui is True and self.args.textmenu is True:
+            logging.critical('You cannot combine GUIT  and Text Menu options. Please choose one or the other')
+            raise SystemExit(1)
 
         self.use_debug = self.args.debug
         self.use_gui = self.args.gui
@@ -72,9 +83,10 @@ class Utilities:
         self.store_password = self.args.storedpw
         self.session_duration = self.args.duration
         self.aws_region = self.args.region
+        self.text_menu = self.args.textmenu
 
         return self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
-            self.store_password, self.session_duration, self.aws_region
+            self.store_password, self.session_duration, self.aws_region, self.text_menu
 
 
 utils = Utilities()
@@ -82,7 +94,7 @@ config = Config()
 login = SAMLLogin()
 
 use_debug, use_gui, browser_type, aws_profile_name, store_password, \
-    arg_session_duration, arg_aws_region = utils.parse_args()
+    arg_session_duration, arg_aws_region, text_menu = utils.parse_args()
 
 
 def get_aws_variables(conf_region, conf_duration):
@@ -163,24 +175,24 @@ def main():
     driver_executable = config.verify_drivers(browser_type)
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
-        saml_provider_name, idp_login_title, gui_name = config.readconfig(aws_profile_name)
+        saml_provider_name, idp_login_title, gui_name = config.read_config(aws_profile_name)
 
     aws_region, aws_session_duration = get_aws_variables(config_aws_region, config_session_duration)
 
     pass_key, pass_file = config.return_stored_pass_config()
 
     if store_password is False:
-        password = passUtils.getPassword()
+        password = passUtils.get_password()
         if password == "revoke":
             config.revoke_creds(aws_profile_name)
-            exit(0)
+            raise SystemExit(1)
 
         confirm_store: str = input('Would you like to store this password for future use? [Y/N]')
 
         if confirm_store == 'Y' or confirm_store == 'y':
-            passUtils.storePass(password, pass_key, pass_file)
+            passUtils.store_password(password, pass_key, pass_file)
     else:
-        password: str = passUtils.retrievePass(pass_key, pass_file)
+        password: str = passUtils.retrieve_password(pass_key, pass_file)
 
     saml_response = login.browser_login(username,
                                         password,
@@ -195,6 +207,13 @@ def main():
 
     logging.info('SAML Response Size: '+str(len(saml_response)))
 
+    if text_menu is True:
+        all_roles = SAMLSelector.get_roles_from_saml_response(saml_response)
+        selected_role = SAMLSelector.select_role_from_text_menu(all_roles)
+        role_arn = selected_role['arn']
+        principle_arn = selected_role['principle']
+
+
     get_sts = aws_assume_role(aws_region, role_arn, principle_arn, saml_response, aws_session_duration)
 
     if len(get_sts) > 0:
@@ -204,7 +223,7 @@ def main():
             config.write_config(aws_access_id, aws_secret_key, aws_session_token, aws_profile_name, aws_region)
         else:
             logging.critical('There seems to be an issue with one of the credentials generated, please try again')
-            exit(2)
+            raise SystemExit(1)
 
         aws_user_id = get_aws_caller_id(aws_profile_name)
 
@@ -216,7 +235,7 @@ def main():
 
     else:
         logging.critical("Corrupt or Unavailable STS Response")
-        exit(2)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
