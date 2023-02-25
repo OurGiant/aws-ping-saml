@@ -1,15 +1,14 @@
+# coding=utf-8
 import configparser
-import logging
 import os
 import re
 import sys
 
 from pathlib import Path
 
+import Utilities
+log_stream = Utilities.Logging('config')
 from version import __version__
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(funcName)s %(levelname)s %(message)s')
-logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 
 def missing_config_file_message():
@@ -39,7 +38,7 @@ def missing_config_file_message():
 
 class Config:
     def __init__(self):
-
+        global log_stream
         self.executePath = str(Path(__file__).resolve().parents[0])
 
         home = str(Path.home())
@@ -60,9 +59,9 @@ class Config:
             self.configCredentials = configparser.ConfigParser()
             self.configCredentials.read(self.awsCredentialsFile)
         else:
-            logging.warning(
+            log_stream.warning(
                 'AWS credentials file ' + self.awsCredentialsFile + ' is missing, this is must be the inital run')
-            logging.info('This program will create an AWS credentials file for you.')
+            log_stream.info('This program will create an AWS credentials file for you.')
 
             with open(self.awsCredentialsFile, 'w') as creds:
                 creds.write("#This is your AWS credentials file\n")
@@ -73,8 +72,8 @@ class Config:
             self.configConfig = configparser.ConfigParser()
             self.configConfig.read(self.awsConfigFile)
         else:
-            logging.critical('AWS config file ' + self.awsConfigFile + ' is missing, this is must be the inital run')
-            logging.critical('This program will create an AWS config file for you.')
+            log_stream.critical('AWS config file ' + self.awsConfigFile + ' is missing, this is must be the inital run')
+            log_stream.critical('This program will create an AWS config file for you.')
 
             self.write_aws_config()
             self.configConfig = configparser.ConfigParser()
@@ -103,21 +102,21 @@ class Config:
             drivers = self.executePath + '\\drivers\\'
             driver_files = {'chrome': 'chromedriver.exe', 'firefox': 'geckodriver.exe'}
         else:
-            logging.critical('Unknown OS type ' + sys.platform)
+            log_stream.critical('Unknown OS type ' + sys.platform)
             raise SystemExit(1)
 
         try:
             driver = str(drivers + driver_files[user_browser])
         except KeyError:
-            logging.critical('unknown browser specified.browsers currently supported:')
+            log_stream.critical('unknown browser specified.browsers currently supported:')
             for browser, driver in driver_files.items():
-                logging.critical(browser)
+                log_stream.critical(browser)
             raise SystemExit(1)
 
         if Path(driver).is_file() is False:
-            logging.critical('The driver for browser ' + user_browser + ' cannot be found at ' +
-                             str(drivers + driver_files[user_browser]) +
-                             '.Please download the appropriate drive by referencing README.md')
+            log_stream.critical('The driver for browser ' + user_browser + ' cannot be found at ' +
+                                str(drivers + driver_files[user_browser]) +
+                                '.Please download the appropriate drive by referencing README.md')
             raise SystemExit(1)
         return driver
 
@@ -127,7 +126,7 @@ class Config:
     def return_account_map_file(self):
         return self.AccountMap
 
-    def read_config(self, aws_profile_name, text_menu, use_idp):
+    def read_config(self, aws_profile_name, text_menu, use_idp, arg_username):
         saml_provider = None
         account_number = None
         iam_role = None
@@ -139,15 +138,16 @@ class Config:
         saml_provider_name = None
         principle_arn = None
         role_arn = None
+        aws_region = None
 
         if text_menu is False:
             try:
                 self.configSAML.get(aws_profile_name, 'samlProvider')
             except configparser.NoSectionError as e:
-                logging.critical('No such AWS profile ' + aws_profile_name)
+                log_stream.critical('No such AWS profile ' + aws_profile_name)
                 raise SystemExit(1)
 
-            logging.info('Reading configuration info for profile ' + aws_profile_name)
+            log_stream.info('Reading configuration info for profile ' + aws_profile_name)
             try:
                 aws_region = self.configSAML[aws_profile_name]['awsRegion']
             except KeyError:
@@ -164,7 +164,7 @@ class Config:
                 gui_name = self.configSAML[aws_profile_name]['guiName']
             except KeyError as missing_config_error:
                 missing_config_property: str = missing_config_error.args[0]
-                logging.critical('Missing configuration property: ' + missing_config_property)
+                log_stream.critical('Missing configuration property: ' + missing_config_property)
                 raise SystemExit(1)
             role_arn = "arn:aws:iam::" + account_number + ":role/" + iam_role
             saml_provider_name = saml_provider.split('-', 1)[1]
@@ -172,23 +172,21 @@ class Config:
         else:
             saml_provider = use_idp
             saml_provider_name = use_idp.split('-', 1)[1]
+            username = arg_username
 
-        logging.info('Reading configuration for SAML provider ' + saml_provider_name)
+        log_stream.info('Reading configuration for SAML provider ' + saml_provider_name)
         try:
             self.configSAML.get(saml_provider, 'loginpage')
         except configparser.NoSectionError:
-            logging.critical('No such SAML provider ' + saml_provider_name)
+            log_stream.critical('No such SAML provider ' + saml_provider_name)
             raise SystemExit(1)
         try:
             first_page = self.configSAML[saml_provider]['loginpage']
             idp_login_title = str(self.configSAML[saml_provider]['loginTitle']).replace('"', '')
         except KeyError as missing_saml_provider_error:
             missing_saml_provider_property: str = missing_saml_provider_error.args[0]
-            logging.critical('Missing SAML provider configuration property ' + missing_saml_provider_property)
+            log_stream.critical('Missing SAML provider configuration property ' + missing_saml_provider_property)
             raise SystemExit(1)
-
-
-
 
         return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
             saml_provider_name, idp_login_title, gui_name
@@ -200,7 +198,7 @@ class Config:
             self.configConfig.write(config)
         with open(self.awsCredentialsFile, "w") as credentials:
             self.configCredentials.write(credentials)
-        logging.info('Revoked token for ' + profile_name)
+        log_stream.info('Revoked token for ' + profile_name)
         pass
 
     def write_config(self, access_key_id, secret_access_key, aws_session_token, aws_profile_name, aws_region):

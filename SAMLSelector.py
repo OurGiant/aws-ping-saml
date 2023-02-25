@@ -1,5 +1,5 @@
+# coding=utf-8
 import base64
-import logging
 from tabulate import tabulate
 
 from selenium.webdriver.common.by import By
@@ -7,8 +7,8 @@ import xml.etree.ElementTree as ET
 
 from version import __version__
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(funcName)s %(levelname)s %(message)s')
-logging.getLogger('boto').setLevel(logging.CRITICAL)
+import Utilities
+log_stream = Utilities.Logging('saml_select')
 
 
 def select_role_from_saml_page(driver, gui_name, iam_role):
@@ -51,8 +51,8 @@ def get_roles_from_saml_response(saml_response,account_map):
         if attribute.get('Name') == 'https://aws.amazon.com/SAML/Attributes/Role':
             for value in attribute.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeValue'):
                 if 'arn:aws:iam:' in value.text and ':role/' in value.text:
-                    role_arn = str(value.text).split(',', 1)[1]
-                    principle_arn = str(value.text).split(',', 1)[0]
+                    principle_arn = str(value.text).split(',', 1)[1]
+                    role_arn = str(value.text).split(',', 1)[0]
                     account_number = role_arn.split(':')[4]
                     role_name = (role_arn.split(':')[5]).split('/')[1]
                     selector_object = {"id": role_id, "arn": role_arn, "account": account_number, "name": role_name,
@@ -71,8 +71,7 @@ def get_roles_from_saml_response(saml_response,account_map):
 
 def select_role_from_text_menu(all_roles, table_object):
     sorted_accounts = sorted(all_roles, key=lambda d: d['account'])
-    #for role in sorted_accounts:
-        #print(f'Id: {role["role_id"]} Account: {role["account"]} Role: {role["name"]}')
+
     print(tabulate(table_object, headers='firstrow', tablefmt='fancy_grid'))
 
     selected_role_id: int = int(input('Enter the Id of the role to assume: '))

@@ -1,17 +1,17 @@
+# coding=utf-8
 # standard library imports
 import sys
 import os
 from datetime import datetime
-import logging
 import getpass
 
 # third-party imports
 from cryptography.fernet import Fernet, InvalidToken
 
 from version import __version__
+import Utilities
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(funcName)s %(levelname)s %(message)s')
-logging.getLogger('boto').setLevel(logging.CRITICAL)
+log_stream = Utilities.Logging('password')
 
 
 def check_store_perms(pass_key):
@@ -37,10 +37,9 @@ def check_store_perms(pass_key):
     st = os.stat(key_path)
     mode = int(st.st_mode)
     if mode > safe_perms:
-        logging.critical('Permissions on your store directory are too permissive. Please secure this directory from '
-                         'reading by anyone other than the owner')
+        log_stream.critical('Permissions on your store directory are too permissive. Please secure this directory from '
+                            'reading by anyone other than the owner')
         raise SystemExit(1)
-
 
 
 """
@@ -52,12 +51,13 @@ the function will prompt the user to enter the password again until a non-empty 
 Returns:
 - password (str): the entered password
 """
+
+
 def get_password():
     password = getpass.getpass(prompt='Enter password: ')
     while len(password) == 0:
         password = getpass.getpass(prompt='Password cannot be empty. Enter password: ')
     return password
-
 
 
 def check_password_status(pass_file, pass_key):
@@ -78,7 +78,7 @@ def check_password_status(pass_file, pass_key):
     pass_created = timestamp_now - pass_file_age
 
     # Log the age of the password file
-    logging.info('Password file age: '+str(pass_created))
+    log_stream.info('Password file age: ' + str(pass_created))
 
     # If the password file is too old, delete it and prompt the user to create a new password
     if pass_created > 84600:
@@ -86,10 +86,10 @@ def check_password_status(pass_file, pass_key):
         try:
             os.remove(pass_file)
         except OSError as remove_file_error:
-            logging.critical('Unable to delete password file: ' + str(remove_file_error))
+            log_stream.critical('Unable to delete password file: ' + str(remove_file_error))
 
         # Prompt the user to create a new password
-        logging.warning('Your password file is too old. Reenter the password')
+        log_stream.warning('Your password file is too old. Reenter the password')
         password = get_password()
         store_password(password, pass_key, pass_file)
 
@@ -174,8 +174,8 @@ def retrieve_password(pass_key, pass_file):
         pass_file_handle.close()
 
     except FileNotFoundError as no_password_file_error:
-        logging.warning('No password found. A new pass store will be created')
-        logging.warning(str(no_password_file_error))
+        log_stream.warning('No password found. A new pass store will be created')
+        log_stream.warning(str(no_password_file_error))
         password = get_password()
         store_password(password, pass_key, pass_file)
         return password
@@ -185,7 +185,7 @@ def retrieve_password(pass_key, pass_file):
         decrypted_pass = f.decrypt(encrypted_pass)
         return decrypted_pass.decode()
     except InvalidToken as invalid_key_error:
-        logging.critical('Your key is invalid: '+str(invalid_key_error))
+        log_stream.critical('Your key is invalid: ' + str(invalid_key_error))
         password = get_password()
         generate_pass_store_key(pass_key)
         store_password(password, pass_key, pass_file)
