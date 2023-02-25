@@ -12,6 +12,16 @@ log_stream = Utilities.Logging('aws')
 class STS:
 
     @staticmethod
+    def get_aws_caller_id(profile):
+        post_session = BotoSession(profile_name=profile)
+        sts = post_session.client('sts')
+
+        aws_caller_identity = sts.get_caller_identity()
+        aws_user_id = str(aws_caller_identity['UserId']).split(":", 1)[1]
+
+        return aws_user_id
+
+    @staticmethod
     def aws_assume_role(region, role, principle, saml_assertion, duration):
         pre_session = BotoSession(region_name=region)
         sts = pre_session.client('sts')

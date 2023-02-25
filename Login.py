@@ -36,11 +36,12 @@ def missing_browser_message(browser, error):
     message = 'There is something wrong with the driver installed for ' + browser + '.'
     message = message + 'Please refer to the documentation in the README on how to download and '
     message = message + 'install the correct driver for your operating system ' + sys.platform
-    logging.critical(message)
-    logging.critical(str(error))
+    log_stream.critical(message)
+    log_stream.critical(str(error))
 
 
-def load_browser(browser, driver_executable, use_debug, first_page, username, password):
+def browser_login(browser, driver_executable, use_debug, first_page, username, password):
+    driver = None
     is_driver_loaded: bool = False
     browser_options = None
 
@@ -56,7 +57,7 @@ def load_browser(browser, driver_executable, use_debug, first_page, username, pa
         try:
             browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
         except se.NoSuchAttributeException:
-            logging.info('Unable to add Experimental Options')
+            log_stream.info('Unable to add Experimental Options')
         # Chrome on Win32 requires basic authentication on PING page, prior to form authentication
         first_page = first_page[0:8] + username + ':' + password + '@' + first_page[8:]
 
@@ -91,7 +92,7 @@ class IdPLogin:
 
         completed_login: bool = False
 
-        driver, is_driver_loaded = load_browser(browser, driver_executable, use_debug, first_page, username, password)
+        driver, is_driver_loaded = browser_login(browser, driver_executable, use_debug, first_page, username, password)
 
         if is_driver_loaded is True:
             driver.set_window_size(1024, 768)
@@ -104,7 +105,7 @@ class IdPLogin:
                 saml_response = "CouldNameLoadSignInPage"
                 return saml_response
 
-            logging.info('Sign In Page Title is ' + driver.title)
+            log_stream.info('Sign In Page Title is ' + driver.title)
 
             if driver.title == idp_login_title:
                 if saml_provider_name == 'PING':
@@ -119,7 +120,7 @@ class IdPLogin:
             time.sleep(2)
 
             if completed_login is True:
-                logging.info('Waiting for SAML Response.')
+                log_stream.info('Waiting for SAML Response.')
                 saml_response = get_saml_response(driver)
 
                 if use_gui is not True:

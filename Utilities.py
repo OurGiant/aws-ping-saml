@@ -15,11 +15,11 @@ class Arguments:
         self.log_stream = Logging('args_init')
         self.use_idp = None
         self.text_menu: bool = False
-        self.aws_region: str = "None"
+        self.aws_region = None
         self.session_duration: int = 0
         self.store_password: bool = False
         self.aws_profile_name = None
-        self.browser_type: str = "None"
+        self.browser_type = None
         self.use_gui: bool = False
         self.use_debug: bool = False
         self.illegal_characters = ['!', '@', '#', '&', '(', ')', '[', '{', '}', ']', ':', ';', '\'', ',', '?', '/',

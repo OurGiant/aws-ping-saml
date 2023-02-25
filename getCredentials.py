@@ -1,14 +1,11 @@
 # coding=utf-8
 import json
 
-from boto3 import Session as BotoSession
-from botocore import errorfactory as err
-
 import Utilities
-from Login import IdPLogin
-from Config import Config
 import Password
 import SAMLSelector
+from Login import IdPLogin
+from Config import Config
 from AWS import STS
 
 from version import __version__
@@ -45,17 +42,8 @@ def get_aws_variables(conf_region, conf_duration):
     return aws_region, aws_session_duration
 
 
-def get_aws_caller_id(profile):
-    post_session = BotoSession(profile_name=profile)
-    sts = post_session.client('sts')
-
-    aws_caller_identity = sts.get_caller_identity()
-    aws_user_id = str(aws_caller_identity['UserId']).split(":", 1)[1]
-
-    return aws_user_id
-
-
 def main():
+    global profile_name
     driver_executable = config.verify_drivers(browser_type)
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
@@ -107,20 +95,24 @@ def main():
         selected_role = SAMLSelector.select_role_from_text_menu(all_roles, table_object)
         role_arn = selected_role['arn']
         principle_arn = selected_role['principle']
+        if aws_profile_name == "None":
+            profile_name = selected_role['rolename']
+        else:
+            profile_name = aws_profile_name
 
     get_sts = STS.aws_assume_role(aws_region, role_arn, principle_arn, saml_response, aws_session_duration)
 
     if len(get_sts) > 0:
         aws_access_id, aws_secret_key, aws_session_token, sts_expiration, \
-            profile_block = STS.get_sts_details(get_sts, aws_region, aws_profile_name)
+            profile_block = STS.get_sts_details(get_sts, aws_region, profile_name)
 
         if config.validate_aws_cred_format(aws_access_id, aws_secret_key, aws_session_token):
-            config.write_config(aws_access_id, aws_secret_key, aws_session_token, aws_profile_name, aws_region)
+            config.write_config(aws_access_id, aws_secret_key, aws_session_token, profile_name, aws_region)
         else:
             log_stream.critical('There seems to be an issue with one of the credentials generated, please try again')
             raise SystemExit(1)
 
-        aws_user_id = get_aws_caller_id(aws_profile_name)
+        aws_user_id = STS.get_aws_caller_id(aws_profile_name)
 
         sts_expires_local_time: str = sts_expiration.strftime("%c")
         log_stream.info('Token issued for ' + aws_user_id + ' in account ')

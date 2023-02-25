@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 from version import __version__
 
 import Utilities
+
 log_stream = Utilities.Logging('saml_select')
 
 
@@ -32,19 +33,19 @@ def select_role_from_saml_page(driver, gui_name, iam_role):
     sign_in_button.click()
 
 
-def get_roles_from_saml_response(saml_response,account_map):
+def get_roles_from_saml_response(saml_response, account_map):
     decoded_saml_bytes = base64.b64decode(saml_response)
     decoded_saml = decoded_saml_bytes.decode('utf-8')
     root = ET.fromstring(decoded_saml)
     assertion_element = root.find('.//{urn:oasis:names:tc:SAML:2.0:assertion}Assertion')
-    assertion = ET.tostring(assertion_element, encoding='unicode')
+    # assertion = ET.tostring(assertion_element, encoding='unicode')
 
     # Extract the AWS role ARN and session token from the assertion
     all_roles = []
     if account_map is None:
-        table_object = [['Id', 'Account', 'Role']]
+        table_object = [['Id', 'Account Number', 'Role Name']]
     else:
-        table_object = [['Id', 'Account', 'Name', 'Role']]
+        table_object = [['Id', 'Account Number', 'Account Name', 'Role Name']]
 
     role_id = 0
     for attribute in assertion_element.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}Attribute'):
@@ -54,10 +55,7 @@ def get_roles_from_saml_response(saml_response,account_map):
                     principle_arn = str(value.text).split(',', 1)[1]
                     role_arn = str(value.text).split(',', 1)[0]
                     account_number = role_arn.split(':')[4]
-                    role_name = (role_arn.split(':')[5]).split('/')[1]
-                    selector_object = {"id": role_id, "arn": role_arn, "account": account_number, "name": role_name,
-                                       "principle": principle_arn}
-                    all_roles.append(selector_object)
+                    role_name = ((role_arn.split(':')[5]).split('/')[1]).split('-', 1)[1]
                     if account_map is None:
                         table_object.append([role_id, account_number, role_name])
                     else:
@@ -65,6 +63,9 @@ def get_roles_from_saml_response(saml_response,account_map):
                             if account['number'] == account_number:
                                 account_name = account['name']
                         table_object.append([role_id, account_number, account_name, role_name])
+                    selector_object = {"id": role_id, "arn": role_arn, "account": account_number, "name": role_name,
+                                       "principle": principle_arn, "rolename": account_name + '-' + role_name}
+                    all_roles.append(selector_object)
                     role_id += 1
     return all_roles, table_object
 
